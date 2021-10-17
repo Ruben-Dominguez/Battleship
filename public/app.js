@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const rotateButton = document.querySelector('#rotate');
   const turnDisplay = document.querySelector('#whose-go');
   const infoDisplay = document.querySelector('#info');
+  const infoDisplay2 = document.querySelector('#info2');
   const setupButtons = document.querySelector('.setup-buttons');
   const userSquares = [];
   const computerSquares = [];
@@ -81,6 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('player-number', num => {
       if(num === -1) {
         infoDisplay.innerHTML = "Sorry the server is full :(";
+        infoDisplay2.style.display = 'none';
       } else {
         playerNum = parseInt(num);
         if(playerNum === 1) currentPlayer = "enemy";
@@ -91,6 +93,8 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.emit('check-players');
       }
     });
+
+    // SOCKETS
 
     // Another player has connected or disconnected'
     socket.on('player-connection', num => {
@@ -122,12 +126,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // On timeout
     socket.on('timeout', () => {
       infoDisplay.innerHTML = 'You have reached the 10 minute limit';
+      infoDisplay2.style.display = 'none';
     });
 
     // Ready button click
     startButton.addEventListener('click', () => {
       if(allShipsPlaced) playGameMulti(socket);
-      else infoDisplay.innerHTML = "Please place all ships"
+      else {
+        infoDisplay.innerHTML = "Please place all ships";
+        infoDisplay2.innerHTML = "UnU";
+      }
     });
 
     // Set up event listener for firing
@@ -170,9 +178,13 @@ document.addEventListener('DOMContentLoaded', () => {
     generate(shipArray[3]);
     generate(shipArray[4]);
     
+    // Ready button click
     startButton.addEventListener('click', () => {
-      setupButtons.style.display = 'none';
-      playGameSingle()
+      if(allShipsPlaced) playGameSingle();
+      else {
+        infoDisplay.innerHTML = "Please place all ships";
+        infoDisplay2.innerHTML = "UnU";
+      }
     });
   }
 
@@ -212,12 +224,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // rotate the ships
   function rotate() {
-      destroyer.classList.toggle('destroyer-container-vertical');
-      submarine.classList.toggle('submarine-container-vertical');
-      cruiser.classList.toggle('cruiser-container-vertical');
-      battleship.classList.toggle('battleship-container-vertical');
-      carrier.classList.toggle('carrier-container-vertical');
-      isHorizontal ? isHorizontal=false : isHorizontal=true;
+    destroyer.classList.toggle('destroyer-container-vertical');
+    submarine.classList.toggle('submarine-container-vertical');
+    cruiser.classList.toggle('cruiser-container-vertical');
+    battleship.classList.toggle('battleship-container-vertical');
+    carrier.classList.toggle('carrier-container-vertical');
+    isHorizontal ? isHorizontal=false : isHorizontal=true;
   }
   rotateButton.addEventListener('click', rotate);
 
@@ -241,8 +253,6 @@ document.addEventListener('DOMContentLoaded', () => {
   function dragStart() {
     draggedShip = this;
     draggedShipLength = draggedShip.childElementCount;
-    // console.log(this);
-    // console.log(draggedShipLength);
   }
 
   function dragOver(e) {
@@ -257,20 +267,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function dragDrop() {
-    
     let option;
     let shipNameWithLastId = draggedShip.lastElementChild.id;
     let shipClass = shipNameWithLastId.slice(0, -2);
-    // console.log(shipClass);
-
     let lastShipIndex = parseInt(shipNameWithLastId.substr(-1));
-    // console.log('lastShipIndex: ' + lastShipIndex);
-
     let shipLastId = lastShipIndex + parseInt(this.dataset.id);
-    // console.log('shipLastId: ' + shipLastId);
-
     selectedShipIndex = parseInt(selectedShipNameWithIndex.substr(-1));
-    // console.log('selectedShipIndex: ' + selectedShipIndex);
 
     isHorizontal ? option = 0 : option = 1;
 
@@ -286,7 +288,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (option === 1) direction = 10; // vertical
 
     let startingPoint = shipLastId - lastShipIndex - selectedShipIndex * direction;
-    // console.log(startingPoint);
 
     const isTaken = current.some(index => userSquares[startingPoint + index].classList.contains('taken'));
     const isAtRightEdge = current.some(index => 
@@ -298,10 +299,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if(!isTaken && !isAtRightEdge) {
       for(let i = 0; i < draggedShipLength; i++) {
         let directionClass = "middle";
+        
         if(i === 0) directionClass = 'start';
         if(i === draggedShipLength - 1) directionClass = 'end';
-        if(isHorizontal) userSquares[startingPoint + i].classList.add(directionClass);
-        else userSquares[startingPoint + i*width].classList.add(directionClass);
+
+        let waves = document.createElement('div');
+        waves.className = 'waves';
+
+        if(isHorizontal) {
+          userSquares[startingPoint + i].classList.add(directionClass);
+          waves.classList.add(directionClass, 'horizontal');
+          userSquares[startingPoint + i].appendChild(waves);
+        } 
+        else {
+          userSquares[startingPoint + i*width].classList.add(directionClass);
+          waves.classList.add(directionClass, 'vertical');
+          userSquares[startingPoint + i*width].appendChild(waves);
+        } 
       }
       if(isHorizontal){
         current.forEach(index => userSquares[startingPoint + index].classList.add('taken', 'horizontal', shipClass));
@@ -345,6 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Game logic for single player
   function playGameSingle() {
+    setupButtons.style.display = 'none';
     if (isGameOver) return
     if(currentPlayer === 'user') {
       turnDisplay.innerHTML = 'Your Go';
@@ -355,7 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if(currentPlayer === 'enemy') {
       turnDisplay.innerHTML = 'Computer\'s Go';
-      setTimeout(enemyGo, 750);
+      setTimeout(enemyGo, 200);
     }
   }
 
@@ -413,48 +428,74 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function checkForWins() {
     let enemy = 'computer';
-    if(gameMode = 'multiPlayer') enemy = 'enemy';
+    if(gameMode === 'multiPlayer') enemy = 'enemy';
 
     // ships destroyed by the player
     if(destroyerCount === 2){
+      destroyerCount = 10;
       infoDisplay.innerHTML = `You sunk the ${enemy}'s destroyer!`;
+      infoDisplay.style.background = "#91FF71";
     }
     if(submarineCount === 3){
+      submarineCount = 10;
       infoDisplay.innerHTML = `You sunk the ${enemy}'s submarine!`;
+      infoDisplay.style.background = "#71FFEE";
     }
     if(cruiserCount === 3){
+      cruiserCount = 10;
       infoDisplay.innerHTML = `You sunk the ${enemy}'s cruiser!`;
+      infoDisplay.style.background = "#71CBFF";
     }
     if(battleshipCount === 4){
+      battleshipCount = 10;
       infoDisplay.innerHTML = `You sunk the ${enemy}'s battleship!`;
+      infoDisplay.style.background = "#9571FF";
     }
     if(carrierCount === 5){
-      infoDisplay.innerHTML = `You sunk the ${enemy}'s destroyer!`;
+      carrierCount = 10;
+      infoDisplay.innerHTML = `You sunk the ${enemy}'s carrier!`;
+      infoDisplay.style.background = "#E771FF";
     }
 
     // ships destroyed by the computer
     if(cpuDestroyerCount === 2){
-      infoDisplay.innerHTML = `Your destroyer was sunk!`;
+      cpuDestroyerCount = 10;
+      infoDisplay2.innerHTML = `Your destroyer was sunk!`;
+      infoDisplay2.style.background = "#FF2222";
     }
     if(cpuSubmarineCount === 3){
-      infoDisplay.innerHTML = `Your submarine was sunk!`;
+      cpuSubmarineCount = 10;
+      infoDisplay2.innerHTML = `Your submarine was sunk!`;
+      infoDisplay2.style.background = "#FF5353";
     }
     if(cpuCruiserCount === 3){
-      infoDisplay.innerHTML = `Your cruiser was sunk!`;
+      cpuCruiserCount = 10;
+      infoDisplay2.innerHTML = `Your cruiser was sunk!`;
+      infoDisplay2.style.background = "#FF8585";
     }
     if(cpuBattleshipCount === 4){
-      infoDisplay.innerHTML = `Your battleship was sunk!`;
+      cpuBattleshipCount = 10;
+      infoDisplay2.innerHTML = `Your battleship was sunk!`;
+      infoDisplay2.style.background = "#FFA8A8";
     }
     if(cpuCarrierCount === 5){
-      infoDisplay.innerHTML = `Your carrier was sunk!`;
+      cpuCarrierCount = 10;
+      infoDisplay2.innerHTML = `Your carrier was sunk!`;
+      infoDisplay2.style.background = "#FFE0E0";
     }
 
-    if (destroyerCount + submarineCount + cruiserCount + battleshipCount + carrierCount === 17) {
+    if (destroyerCount + submarineCount + cruiserCount + battleshipCount + carrierCount === 50) {
       infoDisplay.innerHTML = "You Win!!!";
+      infoDisplay2.innerHTML = "😀";
+      infoDisplay1.style.background = "none";
+      infoDisplay2.style.background = "none";
       gameOver();
     }
-    if (cpuDestroyerCount + cpuSubmarineCount + cpuCruiserCount + cpuBattleshipCount + cpuCarrierCount === 17) {
+    if (cpuDestroyerCount + cpuSubmarineCount + cpuCruiserCount + cpuBattleshipCount + cpuCarrierCount === 50) {
       infoDisplay.innerHTML = `${enemy} Wins!!!`;
+      infoDisplay2.innerHTML = "😥";
+      infoDisplay1.style.background = "none";
+      infoDisplay2.style.background = "none";
       gameOver();
     }
   }
