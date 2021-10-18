@@ -180,7 +180,11 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Ready button click
     startButton.addEventListener('click', () => {
-      if(allShipsPlaced) playGameSingle();
+      if(allShipsPlaced){
+        infoDisplay.innerHTML = "Your sunks will be displayed here!";
+        infoDisplay2.innerHTML = "Enemy sunks will be displayed here!";
+        playGameSingle();
+      }
       else {
         infoDisplay.innerHTML = "Please place all ships";
         infoDisplay2.innerHTML = "UnU";
@@ -218,7 +222,33 @@ document.addEventListener('DOMContentLoaded', () => {
       );
 
     // generates the ship changing the classes on the main div squares. it checks if its possible, if not runs again
-    if(!isTaken && !isAtRightEdge) current.forEach(index => computerSquares[randomStart + index].classList.add('taken', ship.name));
+    if(!isTaken && !isAtRightEdge) {
+      for(let i = 0; i < current.length; i++) {
+        let directionClass = "middle";
+        
+        if(i === 0) directionClass = 'start';
+        if(i === current.length - 1) directionClass = 'end';
+
+        let waves2 = document.createElement('div');
+        waves2.className = 'waves2';
+
+        if(randomDirection === 0) {
+          computerSquares[randomStart + i].classList.add(directionClass);
+          waves2.classList.add(directionClass, 'horizontal', 'cpu', ship.name);
+          computerSquares[randomStart + i].appendChild(waves2);
+        } 
+        else {
+          computerSquares[randomStart + i*width].classList.add(directionClass);
+          waves2.classList.add(directionClass, 'vertical', 'cpu', ship.name);
+          computerSquares[randomStart + i*width].appendChild(waves2);
+        } 
+      }
+      if(randomDirection === 0){
+        current.forEach(index => computerSquares[randomStart + index].classList.add('taken', 'horizontal', 'cpu', ship.name));
+      } else {
+        current.forEach(index => computerSquares[randomStart + index].classList.add('taken', 'vertical', 'cpu', ship.name));
+      }
+    } 
     else generate(ship);
   }
 
@@ -336,8 +366,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if(isGameOver) return;
     if(!ready) {
       socket.emit('player-ready');
-      ready =true;
+      ready = true;
       playerReady(playerNum);
+      turnDisplay.innerHTML = "Ready!";
+      infoDisplay.innerHTML = "Your sunks will be displayed here!";
+      infoDisplay2.innerHTML = "Enemy sunks will be displayed here!";
     }
 
     if(enemyReady) {
@@ -363,15 +396,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isGameOver) return
     if(currentPlayer === 'user') {
       turnDisplay.innerHTML = 'Your Go';
-      computerSquares.forEach(square => square.addEventListener('click', function(e) {
-        shotFired = square.dataset.id;
-        revealSquare(square.classList);
-      }));
+      computerSquares.forEach(square => square.addEventListener('click', shotP));
     }
     if(currentPlayer === 'enemy') {
       turnDisplay.innerHTML = 'Computer\'s Go';
-      setTimeout(enemyGo, 200);
+      setTimeout(enemyGo, 150);
     }
+  }
+
+  var shotP = function shot(e) {
+    shotFired = this.dataset.id;
+    revealSquare(this.classList);
   }
 
   let destroyerCount = 0;
@@ -391,11 +426,16 @@ document.addEventListener('DOMContentLoaded', () => {
       if(obj.includes('battleship'))  battleshipCount++;
       if(obj.includes('carrier'))  carrierCount++;
     }
+    
+    let child = enemySquare.childNodes;
     if(obj.includes('taken')) {
       enemySquare.classList.add('boom');
+      child.forEach(wave => wave.classList.add('boom2'));
     } else {
       enemySquare.classList.add('miss');
+      child.forEach(wave => wave.classList.add('miss2'));
     }
+
     checkForWins();
     currentPlayer = 'enemy';
     if(gameMode === 'singlePlayer') playGameSingle();
@@ -435,26 +475,81 @@ document.addEventListener('DOMContentLoaded', () => {
       destroyerCount = 10;
       infoDisplay.innerHTML = `You sunk the ${enemy}'s destroyer!`;
       infoDisplay.style.background = "#91FF71";
+      let destSquares = document.querySelectorAll("div.taken.destroyer.boom.cpu");
+      let destWaves = document.querySelectorAll("div.waves2.destroyer.boom2.cpu");
+      destSquares.forEach(square => {
+        square.style.backgroundColor = "hsl(0,0%,80%)";
+        square.classList.add('revealed');
+      });
+      destWaves.forEach(square => {
+        square.style.cssText = "display:inline !important";
+        square.style.zIndex = "1000";
+        square.classList.add('waves3');
+      });
     }
     if(submarineCount === 3){
       submarineCount = 10;
       infoDisplay.innerHTML = `You sunk the ${enemy}'s submarine!`;
       infoDisplay.style.background = "#71FFEE";
+      let subSquares = document.querySelectorAll("div.taken.submarine.boom.cpu");
+      let subWaves = document.querySelectorAll("div.waves2.submarine.boom2.cpu");
+      subSquares.forEach(square => {
+        square.style.backgroundColor = "hsl(0,0%,80%)";
+        square.classList.add('revealed');
+      });
+      subWaves.forEach(square => {
+        square.style.cssText = "display:inline !important";
+        square.style.zIndex = "1000";
+        square.classList.add('waves3');
+      });
     }
     if(cruiserCount === 3){
       cruiserCount = 10;
       infoDisplay.innerHTML = `You sunk the ${enemy}'s cruiser!`;
       infoDisplay.style.background = "#71CBFF";
+      let cruSquares = document.querySelectorAll("div.taken.cruiser.boom.cpu");
+      let cruWaves = document.querySelectorAll("div.waves2.cruiser.boom2.cpu");
+      cruSquares.forEach(square => {
+        square.style.backgroundColor = "hsl(0,0%,80%)";
+        square.classList.add('revealed');
+      });
+      cruWaves.forEach(square => {
+        square.style.cssText = "display:inline !important";
+        square.style.zIndex = "1000";
+        square.classList.add('waves3');
+      });
     }
     if(battleshipCount === 4){
       battleshipCount = 10;
       infoDisplay.innerHTML = `You sunk the ${enemy}'s battleship!`;
       infoDisplay.style.background = "#9571FF";
+      let batSquares = document.querySelectorAll("div.taken.battleship.boom.cpu");
+      let batWaves = document.querySelectorAll("div.waves2.battleship.boom2.cpu");
+      batSquares.forEach(square => {
+        square.style.backgroundColor = "hsl(0,0%,80%)";
+        square.classList.add('revealed');
+      });
+      batWaves.forEach(square => {
+        square.style.cssText = "display:inline !important";
+        square.style.zIndex = "1000";
+        square.classList.add('waves3');
+      });
     }
     if(carrierCount === 5){
       carrierCount = 10;
       infoDisplay.innerHTML = `You sunk the ${enemy}'s carrier!`;
       infoDisplay.style.background = "#E771FF";
+      let carSquares = document.querySelectorAll("div.taken.carrier.boom.cpu");
+      let carWaves = document.querySelectorAll("div.waves2.carrier.boom2.cpu");
+      carSquares.forEach(square => {
+        square.style.backgroundColor = "hsl(0,0%,80%)";
+        square.classList.add('revealed');
+      });
+      carWaves.forEach(square => {
+        square.style.cssText = "display:inline !important";
+        square.style.zIndex = "1000";
+        square.classList.add('waves3');
+      });
     }
 
     // ships destroyed by the computer
@@ -487,22 +582,30 @@ document.addEventListener('DOMContentLoaded', () => {
     if (destroyerCount + submarineCount + cruiserCount + battleshipCount + carrierCount === 50) {
       infoDisplay.innerHTML = "You Win!!!";
       infoDisplay2.innerHTML = "😀";
-      infoDisplay1.style.background = "none";
+      infoDisplay.style.background = "none";
       infoDisplay2.style.background = "none";
       gameOver();
     }
     if (cpuDestroyerCount + cpuSubmarineCount + cpuCruiserCount + cpuBattleshipCount + cpuCarrierCount === 50) {
       infoDisplay.innerHTML = `${enemy} Wins!!!`;
       infoDisplay2.innerHTML = "😥";
-      infoDisplay1.style.background = "none";
+      infoDisplay.style.background = "none";
       infoDisplay2.style.background = "none";
+      let allShips = document.querySelectorAll('div.taken.cpu');
+      allShips.forEach(square => square.classList.add('revealed'));
+      let allWaves = document.querySelectorAll("div.waves2.cpu");
+      allWaves.forEach(square => {
+        square.style.cssText = "display:inline !important";
+        square.style.zIndex = "1000";
+        square.classList.add('waves3');
+      });
       gameOver();
     }
   }
 
   function gameOver() {
+    computerSquares.forEach(square => square.removeEventListener('click', shotP));
     isGameOver = true;
-    startButton.removeEventListener('click', playGameSingle);
   }
 
 });

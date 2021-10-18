@@ -75,47 +75,76 @@ body {
   grid-template-columns: repeat(10, 4.6vmin);
 }
 
-.grid-computer > .taken,
-.grid-computer > .boom {
-  background-color: hsl(200, 100%, 50%) !important;
-  border-radius: 0 !important;
-}
-
 .taken,
 .ship {
   position: relative;
   background-color: hsl(0, 0%, 80%);
 }
 
+.grid-computer > .taken,
+.grid-computer > .boom {
+  background-color: hsl(200, 100%, 50%);
+  border-radius: 0 !important;
+}
+
 .start.taken.vertical,
 .start.taken.vertical::before,
-.start.waves.vertical {
+.start.waves.vertical,
+.start.waves2.vertical {
   border-top-left-radius: 50%;
   border-top-right-radius: 50%;
+}
+
+.start.taken.vertical.cpu.revealed,
+.start.taken.vertical.cpu.revealed::before {
+  border-top-left-radius: 50% !important;
+  border-top-right-radius: 50% !important;
 }
 
 .end.taken.vertical,
 .end.taken.vertical::before,
-.end.waves.vertical {
+.end.waves.vertical,
+.end.waves2.vertical {
   border-bottom-left-radius: 50%;
   border-bottom-right-radius: 50%;
+}
+
+.end.taken.vertical.cpu.revealed,
+.end.taken.vertical.cpu.revealed::before {
+  border-bottom-left-radius: 50% !important;
+  border-bottom-right-radius: 50% !important;
 }
 
 .start.taken.horizontal,
 .start.taken.horizontal::before,
-.start.waves.horizontal {
+.start.waves.horizontal,
+.start.waves2.horizontal {
   border-top-left-radius: 50%;
   border-bottom-left-radius: 50%;
 }
 
+.start.taken.horizontal.cpu.revealed,
+.start.taken.horizontal.cpu.revealed::before {
+  border-top-left-radius: 50% !important;
+  border-bottom-left-radius: 50% !important;
+}
+
 .end.taken.horizontal,
 .end.taken.horizontal::before,
-.end.waves.horizontal {
+.end.waves.horizontal,
+.end.waves2.horizontal {
   border-top-right-radius: 50%;
   border-bottom-right-radius: 50%;
 }
 
-.waves {
+.end.taken.horizontal.cpu.revealed,
+.end.taken.horizontal.cpu.revealed::before {
+  border-top-right-radius: 50% !important;
+  border-bottom-right-radius: 50% !important;
+}
+
+.waves,
+.waves2 {
   background-color: transparent;
   position: absolute;
   width: 4.6vmin;
@@ -123,21 +152,39 @@ body {
   border: 0.3vmin solid white;
 }
 
-.waves.horizontal {
+.waves.horizontal,
+.waves2.horizontal {
   animation: ripplesY 3s linear infinite;
   border-left: none;
   border-right: none;
 }
 
-.waves.vertical {
+.waves.vertical,
+.waves2.vertical {
   animation: ripplesX 3s linear infinite;
   border-top: none;
   border-bottom: none;
 }
 
-.taken > .waves {
+.taken > .waves,
+.taken > .waves2 {
   top: -1px;
   left: -1px;
+  z-index: 1;
+}
+
+.waves2 {
+  display: none !important;
+}
+
+.waves3 {
+  animation-delay: 2s !important;
+  opacity: 0;
+}
+
+.revealed {
+  background-color: hsl(0, 0%, 50%) !important;
+  transition: 2s;
 }
 
 @keyframes ripplesY {
@@ -291,9 +338,15 @@ body {
     border-radius: 100%;
   }
 
-  100% {
+  99% {
     opacity: 0;
     transform: scale(4);
+    border-radius: 100%;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1);
     border-radius: 100%;
   }
 }
