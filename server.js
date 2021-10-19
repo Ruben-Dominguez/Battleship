@@ -18,7 +18,6 @@ server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 const connections = [null, null];
 io.on('connection', socket => {
-  // console.log("New WS Connection");
 
   // Find an available player number
   let playerIndex = -1;
@@ -78,17 +77,20 @@ io.on('connection', socket => {
 
   // On fire reply
   socket.on('fire-reply', square => {
-    console.log(square);
 
-    //Forward the reply to the otyher player
+    //Forward the reply to the other player
     socket.broadcast.emit('fire-reply', square);
-  })
+  });
+
+  socket.on('win', board => {
+    socket.broadcast.emit('reveal', board);
+  });
 
   // Timeout connection
   setTimeout(() =>{
     connections[playerIndex] = null;
     socket.emit('timeout');
     socket.disconnect();
-  }, 600000); // 10 min limit per player
+  }, 600000); // 10 min limit per player = 600000
 
 });

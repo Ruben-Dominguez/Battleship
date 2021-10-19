@@ -25,6 +25,14 @@ document.addEventListener('DOMContentLoaded', () => {
   let enemyReady = false;
   let allShipsPlaced = false;
   let shotFired = -1;
+  let socket = null;
+  let datas = {
+    destroyer: [],
+    submarine: [],
+    cruiser: [],
+    battleship: [],
+    carrier: []
+  };
 
   const shipArray = [
     {
@@ -76,7 +84,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Multiplayer
   function startMultiPlayer() {
-    const socket = io();
+        
+    // SOCKETS
+    
+    socket = io();
 
     // Get your player number
     socket.on('player-number', num => {
@@ -87,14 +98,10 @@ document.addEventListener('DOMContentLoaded', () => {
         playerNum = parseInt(num);
         if(playerNum === 1) currentPlayer = "enemy";
 
-        console.log(playerNum);
-
         // Get other players status
         socket.emit('check-players');
       }
     });
-
-    // SOCKETS
 
     // Another player has connected or disconnected'
     socket.on('player-connection', num => {
@@ -126,6 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // On timeout
     socket.on('timeout', () => {
       infoDisplay.innerHTML = 'You have reached the 10 minute limit';
+      infoDisplay.style.backgroundColor = 'transparent';
       infoDisplay2.style.display = 'none';
     });
 
@@ -136,16 +144,6 @@ document.addEventListener('DOMContentLoaded', () => {
         infoDisplay.innerHTML = "Please place all ships";
         infoDisplay2.innerHTML = "UnU";
       }
-    });
-
-    // Set up event listener for firing
-    computerSquares.forEach(square => {
-      square.addEventListener('click', () => {
-        if(currentPlayer === 'user' && ready && enemyReady) {
-          shotFired = square.dataset.id;
-          socket.emit('fire', shotFired);
-        }
-      });
     });
 
     // On fire received
@@ -160,6 +158,26 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('fire-reply', classList => {
       revealSquare(classList);
       playGameMulti(socket);
+    });
+
+    socket.on('reveal', board => {
+      let squares = [];
+      for(let i=0; i<100; i++){
+        squares[i] = Object.values(board[i]);
+      }
+      for(let i=0; i<100; i++){
+        squares[i].forEach(square => computerSquares[i].classList.add(square));
+        if(squares[i].length > 3) {
+          computerSquares[i].classList.add('revealed', 'cpu');
+          let waves2 = document.createElement('div');
+          waves2.className = 'waves2';
+          waves2.classList.add('boom2', 'cpu', 'waves3', squares[i][0], squares[i][2], squares[i][3]);
+          waves2.style.cssText = "display:inline !important";
+          waves2.style.zIndex = "1000";
+          computerSquares[i].appendChild(waves2);
+        } 
+      }
+      
     });
 
     function playerConnectedOrDisconnected(num) {
@@ -194,7 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Create Board
   function createBoard(grid, squares) {
-    for (let i =0; i< width * width; i++) {
+    for (let i = 0; i < width * width; i++) {
       const square = document.createElement('div');
       square.dataset.id = i; // adds a data id with value i
       grid.appendChild(square); // adds it to the html
@@ -368,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
       socket.emit('player-ready');
       ready = true;
       playerReady(playerNum);
-      turnDisplay.innerHTML = "Ready!";
+      if(!enemyReady) turnDisplay.innerHTML = "Ready!";
       infoDisplay.innerHTML = "Your sunks will be displayed here!";
       infoDisplay2.innerHTML = "Enemy sunks will be displayed here!";
     }
@@ -376,12 +394,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if(enemyReady) {
       if(currentPlayer === 'user') {
         turnDisplay.innerHTML = "Your Go";
+        computerSquares.forEach(square => square.addEventListener('click', shotM));
       }
       if(currentPlayer === 'enemy') {
         turnDisplay.innerHTML = "Enemy's Go";
       }
     }
+  }
 
+  var shotM = function shot(e){
+    if(currentPlayer === 'user' && ready && enemyReady) {
+      shotFired = this.dataset.id;
+      socket.emit('fire', shotFired);
+    }
   }
 
   function playerReady(num) {
@@ -393,7 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Game logic for single player
   function playGameSingle() {
     setupButtons.style.display = 'none';
-    if (isGameOver) return
+    if (isGameOver) return;
     if(currentPlayer === 'user') {
       turnDisplay.innerHTML = 'Your Go';
       computerSquares.forEach(square => square.addEventListener('click', shotP));
@@ -418,6 +443,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function revealSquare(classList) {
     const enemySquare = computerGrid.querySelector(`div[data-id='${shotFired}']`);
     const obj = Object.values(classList);
+    if(gameMode === 'multiPlayer') {
+      if(obj.length > 1) datas[obj[3]].push([shotFired, obj]);
+    } 
     if(enemySquare.classList.contains('boom') || enemySquare.classList.contains('miss')) return;
     if((!enemySquare.classList.contains('boom') && !enemySquare.classList.contains('miss')) && currentPlayer === 'user' && !isGameOver){
       if(obj.includes('destroyer'))  destroyerCount++;
@@ -430,6 +458,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let child = enemySquare.childNodes;
     if(obj.includes('taken')) {
       enemySquare.classList.add('boom');
+      if(gameMode == 'multiPlayer') {
+        enemySquare.classList.add('boom', 'human');
+      } 
       child.forEach(wave => wave.classList.add('boom2'));
     } else {
       enemySquare.classList.add('miss');
@@ -462,19 +493,31 @@ document.addEventListener('DOMContentLoaded', () => {
       if(userSquares[square].classList.contains('carrier'))  cpuCarrierCount++;
       checkForWins();
     } else if(gameMode === 'singlePlayer') enemyGo();
+    else return;
     currentPlayer = 'user';
     turnDisplay.innerHTML = 'Your Go';
   }
 
   function checkForWins() {
-    let enemy = 'computer';
-    if(gameMode === 'multiPlayer') enemy = 'enemy';
+    let enemy = 'Computer';
+    if(gameMode === 'multiPlayer') enemy = 'Enemy';
 
     // ships destroyed by the player
     if(destroyerCount === 2){
       destroyerCount = 10;
       infoDisplay.innerHTML = `You sunk the ${enemy}'s destroyer!`;
       infoDisplay.style.background = "#91FF71";
+
+      if(gameMode === 'multiPlayer'){
+        datas["destroyer"].forEach(arr => {
+          computerSquares[arr[0]].classList.add(arr[1][0], arr[1][1], arr[1][2], arr[1][3],arr[1][4], 'cpu');
+          let waves2 = document.createElement('div');
+          waves2.className = 'waves2';
+          waves2.classList.add('boom2', 'cpu', 'waves3', arr[1][0], arr[1][2], arr[1][3]);
+          computerSquares[arr[0]].appendChild(waves2);
+        });
+      }
+      
       let destSquares = document.querySelectorAll("div.taken.destroyer.boom.cpu");
       let destWaves = document.querySelectorAll("div.waves2.destroyer.boom2.cpu");
       destSquares.forEach(square => {
@@ -491,6 +534,17 @@ document.addEventListener('DOMContentLoaded', () => {
       submarineCount = 10;
       infoDisplay.innerHTML = `You sunk the ${enemy}'s submarine!`;
       infoDisplay.style.background = "#71FFEE";
+
+      if(gameMode === 'multiPlayer'){
+        datas["submarine"].forEach(arr => {
+          computerSquares[arr[0]].classList.add(arr[1][0], arr[1][1], arr[1][2], arr[1][3],arr[1][4], 'cpu');
+          let waves2 = document.createElement('div');
+          waves2.className = 'waves2';
+          waves2.classList.add('boom2', 'cpu', 'waves3', arr[1][0], arr[1][2], arr[1][3]);
+          computerSquares[arr[0]].appendChild(waves2);
+        });
+      }
+
       let subSquares = document.querySelectorAll("div.taken.submarine.boom.cpu");
       let subWaves = document.querySelectorAll("div.waves2.submarine.boom2.cpu");
       subSquares.forEach(square => {
@@ -507,6 +561,17 @@ document.addEventListener('DOMContentLoaded', () => {
       cruiserCount = 10;
       infoDisplay.innerHTML = `You sunk the ${enemy}'s cruiser!`;
       infoDisplay.style.background = "#71CBFF";
+      
+      if(gameMode === 'multiPlayer'){
+        datas["cruiser"].forEach(arr => {
+          computerSquares[arr[0]].classList.add(arr[1][0], arr[1][1], arr[1][2], arr[1][3],arr[1][4], 'cpu');
+          let waves2 = document.createElement('div');
+          waves2.className = 'waves2';
+          waves2.classList.add('boom2', 'cpu', 'waves3', arr[1][0], arr[1][2], arr[1][3]);
+          computerSquares[arr[0]].appendChild(waves2);
+        });
+      }
+      
       let cruSquares = document.querySelectorAll("div.taken.cruiser.boom.cpu");
       let cruWaves = document.querySelectorAll("div.waves2.cruiser.boom2.cpu");
       cruSquares.forEach(square => {
@@ -523,6 +588,17 @@ document.addEventListener('DOMContentLoaded', () => {
       battleshipCount = 10;
       infoDisplay.innerHTML = `You sunk the ${enemy}'s battleship!`;
       infoDisplay.style.background = "#9571FF";
+      
+      if(gameMode === 'multiPlayer'){
+        datas["battleship"].forEach(arr => {
+          computerSquares[arr[0]].classList.add(arr[1][0], arr[1][1], arr[1][2], arr[1][3],arr[1][4], 'cpu');
+          let waves2 = document.createElement('div');
+          waves2.className = 'waves2';
+          waves2.classList.add('boom2', 'cpu', 'waves3', arr[1][0], arr[1][2], arr[1][3]);
+          computerSquares[arr[0]].appendChild(waves2);
+        });
+      }
+      
       let batSquares = document.querySelectorAll("div.taken.battleship.boom.cpu");
       let batWaves = document.querySelectorAll("div.waves2.battleship.boom2.cpu");
       batSquares.forEach(square => {
@@ -539,6 +615,17 @@ document.addEventListener('DOMContentLoaded', () => {
       carrierCount = 10;
       infoDisplay.innerHTML = `You sunk the ${enemy}'s carrier!`;
       infoDisplay.style.background = "#E771FF";
+      
+      if(gameMode === 'multiPlayer'){
+        datas["carrier"].forEach(arr => {
+          computerSquares[arr[0]].classList.add(arr[1][0], arr[1][1], arr[1][2], arr[1][3],arr[1][4], 'cpu');
+          let waves2 = document.createElement('div');
+          waves2.className = 'waves2';
+          waves2.classList.add('boom2', 'cpu', 'waves3', arr[1][0], arr[1][2], arr[1][3]);
+          computerSquares[arr[0]].appendChild(waves2);
+        });
+      }
+      
       let carSquares = document.querySelectorAll("div.taken.carrier.boom.cpu");
       let carWaves = document.querySelectorAll("div.waves2.carrier.boom2.cpu");
       carSquares.forEach(square => {
@@ -580,13 +667,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (destroyerCount + submarineCount + cruiserCount + battleshipCount + carrierCount === 50) {
+      turnDisplay.style.display = "none"
       infoDisplay.innerHTML = "You Win!!!";
       infoDisplay2.innerHTML = "😀";
       infoDisplay.style.background = "none";
       infoDisplay2.style.background = "none";
+      if(gameMode === 'multiPlayer') {
+        let man = {};
+        for(let i=0; i<100; i++) {
+          man[i]= userSquares[i].classList;
+        }
+        socket.emit('win', man);
+      }
       gameOver();
     }
     if (cpuDestroyerCount + cpuSubmarineCount + cpuCruiserCount + cpuBattleshipCount + cpuCarrierCount === 50) {
+      
+      turnDisplay.style.display = "none"
       infoDisplay.innerHTML = `${enemy} Wins!!!`;
       infoDisplay2.innerHTML = "😥";
       infoDisplay.style.background = "none";
@@ -604,7 +701,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function gameOver() {
-    computerSquares.forEach(square => square.removeEventListener('click', shotP));
+    if(gameMode === 'singlePlayer')
+      computerSquares.forEach(square => square.removeEventListener('click', shotP));
+    if(gameMode === 'multiPlayer')
+      computerSquares.forEach(square => square.removeEventListener('click', shotM));
     isGameOver = true;
   }
 
